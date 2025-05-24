@@ -52,7 +52,7 @@ const Dashboard = () => {
       } catch (error) {
         console.error('Error polling current visits:', error);
       }
-    }, 30000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);

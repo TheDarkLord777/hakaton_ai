@@ -117,13 +117,22 @@ const LiveDetection = () => {
               const response = await detectFace(blob);
               
               if (response && response.face_location) {
-                if (response.is_recognized) {
+                // Ishonchlilik darajasi 60% dan kichik bo'lsa, tanilmagan deb hisoblaymiz
+                const isConfidentMatch = response.is_recognized && response.confidence >= 60;
+                
+                // O'zgartirilgan response obyekti
+                const processedResponse = {
+                  ...response,
+                  is_recognized: isConfidentMatch // Faqat 60% dan yuqori bo'lsa, tanilgan deb hisoblaymiz
+                };
+                
+                if (isConfidentMatch) {
                   if (lastDetectedClientId !== response.client_id) {
                     setLastDetectedClientId(response.client_id);
                     setLastDetectedVisitorLocation(null);
-                    setDetectedClient(response);
-                    setDetectedFaces([response]);
-                    setRecognizedClients([response]);
+                    setDetectedClient(processedResponse);
+                    setDetectedFaces([processedResponse]);
+                    setRecognizedClients([processedResponse]);
                     
                     setLoadingRecommendations(true);
                     try {
@@ -145,12 +154,17 @@ const LiveDetection = () => {
                   if (!isSimilarFaceLocation(lastDetectedVisitorLocation, response.face_location)) {
                     setLastDetectedVisitorLocation(response.face_location);
                     setLastDetectedClientId(null);
-                    setDetectedFaces([response]);
+                    setDetectedFaces([processedResponse]);
                     setRecognizedClients([]);
                     setDetectedClient(null);
                     setRecommendations([]);
                     
+                    // Agar yuz aniqlangan, lekin ishonchlilik past bo'lsa
+                    if (response.is_recognized && response.confidence < 60) {
+                      addToast('Face detected but confidence too low!', 'warning');
+                    } else {
                     addToast('New visitor detected!', 'info');
+                    }
                     stopCapturing();
                   } else {
                     console.log('Same visitor detected again, ignoring');
@@ -281,10 +295,22 @@ const LiveDetection = () => {
                     </div>
                   )}
                   
-                  {detectedFaces.map((face, index) => (
+                  {detectedFaces.map((face, index) => {
+                    // Yuz tanilgan, lekin ishonchlilik past bo'lsa
+                    const lowConfidence = face.confidence && face.confidence < 60;
+                    
+                    // Ramka rangi: yashil (tanilgan), qizil (ishonchlilik past), sariq (yangi mehmon)
+                    const borderColor = face.is_recognized ? 'border-green-500' : 
+                                        lowConfidence ? 'border-red-500' : 'border-yellow-500';
+                    
+                    // Sarlavha rangi: yashil (tanilgan), qizil (ishonchlilik past), sariq (yangi mehmon)
+                    const bgColor = face.is_recognized ? 'bg-green-500' : 
+                                    lowConfidence ? 'bg-red-500' : 'bg-yellow-500';
+                    
+                    return (
                     <div
                       key={`face-${index}`}
-                      className={`absolute border-4 ${face.is_recognized ? 'border-green-500' : 'border-yellow-500'}`}
+                        className={`absolute border-4 ${borderColor}`}
                       style={{
                         top: `${face.face_location[0]}px`,
                         right: `${face.face_location[1]}px`,
@@ -293,12 +319,18 @@ const LiveDetection = () => {
                       }}
                     >
                       <div 
-                        className={`absolute -top-7 left-0 ${face.is_recognized ? 'bg-green-500' : 'bg-yellow-500'} text-white px-2 py-1 text-xs font-bold rounded-t-md`}
-                      >
-                        {face.is_recognized ? (face.client_name || `Client #${face.client_id}`) : `New Visitor #${index + 1}`}
+                          className={`absolute -top-7 left-0 ${bgColor} text-white px-2 py-1 text-xs font-bold rounded-t-md`}
+                        >
+                          {face.is_recognized ? 
+                            (face.client_name || `Client #${face.client_id}`) : 
+                            lowConfidence ? 
+                              `Unrecognized (${face.confidence.toFixed(1)}%)` : 
+                              `New Visitor #${index + 1}`
+                          }
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -387,16 +419,43 @@ const LiveDetection = () => {
                     <ul className="space-y-2">
                       {detectedFaces
                         .filter(face => !face.is_recognized)
-                        .map((face, index) => (
-                          <li key={`visitor-${index}`} className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                        .map((face, index) => {
+                          // Yuz tanilgan, lekin ishonchlilik past bo'lsa
+                          const lowConfidence = face.confidence && face.confidence < 60;
+                          
+                          // Fon rangi: qizil (ishonchlilik past), sariq (yangi mehmon)
+                          const bgClass = lowConfidence ? 
+                            "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800" : 
+                            "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800";
+                          
+                          // Matn rangi: qizil (ishonchlilik past), sariq (yangi mehmon)
+                          const textClass = lowConfidence ? 
+                            "text-red-800 dark:text-red-300" : 
+                            "text-yellow-800 dark:text-yellow-300";
+                          
+                          // Icon fon rangi
+                          const iconBgClass = lowConfidence ? 
+                            "bg-red-100 dark:bg-red-800" : 
+                            "bg-yellow-100 dark:bg-yellow-800";
+                          
+                          // Icon rangi
+                          const iconClass = lowConfidence ? 
+                            "text-red-600 dark:text-red-300" : 
+                            "text-yellow-600 dark:text-yellow-300";
+                          
+                          return (
+                            <li key={`visitor-${index}`} className={`p-3 ${bgClass} rounded-md`}>
                             <div className="flex items-center justify-between">
                               <div className="flex items-center">
-                                <div className="flex-shrink-0 p-1 rounded-full bg-yellow-100 dark:bg-yellow-800">
-                                  <UserPlusIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-300" />
+                                  <div className={`flex-shrink-0 p-1 rounded-full ${iconBgClass}`}>
+                                    <UserPlusIcon className={`w-4 h-4 ${iconClass}`} />
                                 </div>
                                 <div className="ml-3">
-                                  <h5 className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
-                                    New Visitor #{index + 1}
+                                    <h5 className={`text-sm font-medium ${textClass}`}>
+                                      {lowConfidence ? 
+                                        `Unrecognized (${face.confidence.toFixed(1)}%)` : 
+                                        `New Visitor #${index + 1}`
+                                      }
                                   </h5>
                                 </div>
                               </div>
@@ -408,7 +467,8 @@ const LiveDetection = () => {
                               </Button>
                             </div>
                           </li>
-                        ))}
+                          );
+                        })}
                     </ul>
                   </div>
                 )}

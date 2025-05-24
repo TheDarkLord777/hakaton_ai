@@ -27,6 +27,15 @@ def create_client(client: ClientCreate, db: Session = Depends(get_db)):
     """
     Create a new client.
     """
+    # Telefon raqami bo'yicha tekshirish (agar telefon raqami berilgan bo'lsa)
+    if client.phone:
+        existing_client = db.query(Client).filter(Client.phone == client.phone).first()
+        if existing_client:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number already registered"
+            )
+    
     # Jinsni avtomatik aniqlash (agar berilmagan bo'lsa)
     if not client.gender and client.last_name:
         if client.last_name.strip().lower().endswith('a'):
@@ -89,6 +98,15 @@ def update_client(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Client not found"
         )
+    
+    # Telefon raqami o'zgartirilgan bo'lsa, unikal tekshirish
+    if client_in.phone and client_in.phone != client.phone:
+        existing_client = db.query(Client).filter(Client.phone == client_in.phone).first()
+        if existing_client:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number already registered"
+            )
     
     update_data = client_in.dict(exclude_unset=True)
     

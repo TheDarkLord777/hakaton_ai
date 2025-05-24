@@ -31,7 +31,7 @@ const ClientRegister = () => {
     workplace: ''
   });
 
-  // Familiya o'zgarganda jinsni avtomatik aniqlash - to'g'rilangan versiya
+  // Familiya o'zgarganda jinsni avtomatik aniqlash
   const handleLastNameChange = (e) => {
     const lastName = e.target.value;
     
@@ -125,17 +125,18 @@ const ClientRegister = () => {
       };
 
       let response;
-      if (clientId) {
-        // Update existing client
-        response = await updateClient(clientId, clientData);
-        addToast('Client updated successfully', 'success');
-      } else {
-        // Create new client
-        response = await createClient(clientData);
-        addToast('Client registered successfully', 'success');
-        
-        // If we have a captured image, register the face
-        if (capturedImage) {
+      try {
+        if (clientId) {
+          // Update existing client
+          response = await updateClient(clientId, clientData);
+          addToast('Client updated successfully', 'success');
+        } else {
+          // Create new client
+          response = await createClient(clientData);
+          addToast('Client registered successfully', 'success');
+          
+          // If we have a captured image, register the face
+          if (capturedImage) {
     try {
       // Convert base64 to blob
       const byteString = atob(capturedImage.split(',')[1]);
@@ -148,17 +149,24 @@ const ClientRegister = () => {
       const blob = new Blob([ab], { type: mimeString });
       
       // Register face
-            await registerFace(response.id, blob);
-            addToast('Face registered successfully', 'success');
-          } catch (err) {
-            console.error('Error registering face:', err);
-            addToast('Error registering face', 'error');
+              await registerFace(response.id, blob);
+              addToast('Face registered successfully', 'success');
+            } catch (err) {
+              console.error('Error registering face:', err);
+              addToast('Error registering face', 'error');
+            }
           }
         }
-      }
 
-      // Navigate back or to client details
+        // Navigate back or to client details
       navigate('/');
+      } catch (err) {
+        if (err.response && err.response.status === 400 && err.response.data.detail === "Phone number already registered") {
+          addToast('Phone number already registered with another client', 'error');
+        } else {
+          throw err; // Re-throw other errors to be caught by the outer catch
+        }
+      }
     } catch (err) {
       console.error('Error saving client:', err);
       addToast('Error saving client data', 'error');
@@ -377,7 +385,7 @@ const ClientRegister = () => {
           </Card>
         </div>
 
-        {/* Face Registration */}
+        {/* Face Registration - Soddalashtirilgan */}
         <Card>
           <CardHeader>
             <CardTitle>Face Registration</CardTitle>
@@ -393,8 +401,21 @@ const ClientRegister = () => {
                     videoConstraints={{ facingMode: "user" }}
                     className="w-full rounded-lg shadow-md"
                   />
+                  
+                  {/* Yuz joylashuvi uchun yo'riqnoma */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-3/4 h-3/4 border-4 border-dashed border-yellow-500 rounded-full opacity-50"></div>
+                  </div>
+                    </div>
+                
+                <div className="p-2 text-sm rounded-md bg-yellow-100 text-yellow-800 font-medium text-center">
+                  Yuzingizni doira ichiga joylashtiring
                 </div>
-                <Button onClick={captureImage} className="w-full">
+                
+                <Button 
+                  onClick={captureImage} 
+                  className="w-full"
+                >
                   <CameraIcon className="w-5 h-5 mr-2" />
                   Capture Photo
                 </Button>
@@ -421,11 +442,19 @@ const ClientRegister = () => {
                     <CameraIcon className="w-5 h-5 mr-2" />
                   Activate Camera
                   </Button>
-            </div>
-          )}
+              </div>
+            )}
           </CardContent>
           <CardFooter className="text-sm text-gray-500 dark:text-gray-400">
-            Face image is used for automatic recognition when the client visits again.
+            <div className="space-y-2">
+              <p>Face image is used for automatic recognition when the client visits again.</p>
+              <ul className="list-disc list-inside text-xs">
+                <li>Yuzingizni doira ichiga joylashtiring</li>
+                <li>Yaxshi yorug'lik bo'lishi kerak</li>
+                <li>Ko'zoynak va bosh kiyimlarni yechish tavsiya etiladi</li>
+                <li>To'g'ridan qarang, yuzingizni burmasdan</li>
+              </ul>
+            </div>
         </CardFooter>
       </Card>
       </div>
