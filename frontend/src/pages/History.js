@@ -29,12 +29,21 @@ const History = () => {
   const [filteredVisits, setFilteredVisits] = useState([]);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all'); // all, today, week, month
+  const [purposeFilter, setPurposeFilter] = useState('all');
 
   useEffect(() => {
     const fetchVisits = async () => {
       try {
         setLoading(true);
         const data = await getVisits();
+        
+        // Debug uchun
+        console.log('Raw visits data:', data);
+        if (Array.isArray(data)) {
+          data.forEach((visit, index) => {
+            console.log(`Visit ${index + 1} purpose:`, visit.purpose);
+          });
+        }
         
         // Check if data is array and has items
         if (Array.isArray(data) && data.length > 0) {
@@ -99,6 +108,8 @@ const History = () => {
 
   const clearFilters = () => {
     setFilterDate('');
+    setPurposeFilter('all');
+    setFilter('all');
   };
 
   const getCurrentPageItems = () => {
@@ -155,6 +166,25 @@ const History = () => {
     }
   };
 
+  const formatPurpose = (purpose) => {
+    if (!purpose) return 'Not specified';
+    
+    // Purpose ni chiroyli ko'rsatish uchun formatlash
+    const purposeColors = {
+      'View new cars': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      'Access services': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      'Schedule test drive': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      'Manage documents': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+      'Get information': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+      'Purchase car': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      'Other': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+    };
+    
+    const colorClass = purposeColors[purpose] || 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+    
+    return { text: purpose, colorClass };
+  };
+
   const filteredVisitsPerPage = () => {
     try {
       if (!Array.isArray(filteredVisits)) return [];
@@ -207,6 +237,45 @@ const History = () => {
 
   const totalPagesPerFilter = Math.ceil(filteredVisitsPerPage().length / ITEMS_PER_PAGE);
 
+  const getPurposeStats = () => {
+    const stats = {};
+    filteredVisits.forEach(visit => {
+      const purpose = visit.purpose || 'Not specified';
+      stats[purpose] = (stats[purpose] || 0) + 1;
+    });
+    return stats;
+  };
+
+  const getDurationStats = () => {
+    const stats = {
+      'Less than 15 min': 0,
+      '15-30 min': 0,
+      '30-60 min': 0,
+      'Over 1 hour': 0
+    };
+    
+    filteredVisits.forEach(visit => {
+      if (visit.entry_time && visit.exit_time) {
+        const entry = new Date(visit.entry_time);
+        const exit = new Date(visit.exit_time);
+        const durationMs = exit - entry;
+        const minutes = Math.floor(durationMs / (1000 * 60));
+        
+        if (minutes < 15) {
+          stats['Less than 15 min']++;
+        } else if (minutes < 30) {
+          stats['15-30 min']++;
+        } else if (minutes < 60) {
+          stats['30-60 min']++;
+        } else {
+          stats['Over 1 hour']++;
+        }
+      }
+    });
+    
+    return stats;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -223,6 +292,7 @@ const History = () => {
       </div>
     );
   }
+  console.log(visits);
 
   return (
     <div className="space-y-6">
@@ -352,6 +422,7 @@ const History = () => {
                     const entryTime = formatDateTime(visit.entry_time);
                     const exitTime = visit.exit_time ? formatDateTime(visit.exit_time) : null;
                     const duration = formatDuration(visit.entry_time, visit.exit_time);
+                    const purpose = formatPurpose(visit.purpose);
                     
                     return (
                       <tr key={visit.id}>
@@ -396,8 +467,8 @@ const History = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            {visit.purpose || 'Not specified'}
+                          <span className={purpose.colorClass}>
+                            {purpose.text}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -486,6 +557,38 @@ const History = () => {
           </CardFooter>
         )}
       </Card>
+
+      <div className="mt-4 mb-4">
+        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Visit Purpose Statistics</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Object.entries(getPurposeStats()).map(([purpose, count]) => (
+            <div key={purpose} className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {purpose}
+              </div>
+              <div className="text-lg font-semibold">
+                {count} visits
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 mb-4">
+        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Visit Duration Statistics</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Object.entries(getDurationStats()).map(([duration, count]) => (
+            <div key={duration} className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {duration}
+              </div>
+              <div className="text-lg font-semibold">
+                {count} visits
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

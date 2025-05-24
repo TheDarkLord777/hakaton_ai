@@ -54,8 +54,24 @@ export const deleteClient = async (id) => {
 
 // Visits
 export const getVisits = async () => {
-  const response = await api.get('/visits');
-  return response.data;
+  try {
+    const response = await api.get('/visits');
+    console.log('Visit data from API:', response.data); // Debug uchun
+    
+    // Ma'lumotlarni tekshirish
+    if (Array.isArray(response.data)) {
+      response.data.forEach(visit => {
+        if (!visit.purpose) {
+          visit.purpose = "Not specified";
+        }
+      });
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching visits:', error);
+    throw error;
+  }
 };
 
 export const getCurrentVisits = async () => {
@@ -170,5 +186,30 @@ export const getMostRecommendedCars = async (days = 30, limit = 5) => {
 
 export const getClientStats = async () => {
   const response = await api.get('/analytics/clients/stats');
+  return response.data;
+};
+
+// Face Recognition - Entry & Exit
+export const detectEntryFace = async (imageData) => {
+  const formData = new FormData();
+  formData.append('file', imageData);
+  
+  const response = await api.post('/face/detect-entry', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const detectExitFace = async (imageData) => {
+  const formData = new FormData();
+  formData.append('file', imageData);
+  
+  const response = await api.post('/face/detect-exit', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 }; 

@@ -284,4 +284,193 @@ async def detect_multiple_faces(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing image: {str(e)}"
-        ) 
+        )
+
+
+@router.post("/detect-entry")
+async def detect_entry_face(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Kirish kamerasi uchun yuzni aniqlash va tashrif yaratish
+    """
+    try:
+        # Read image from request
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if image is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid image"
+            )
+        
+        # Extract face encoding
+        try:
+            face_encoding, face_location = face_service.encode_face_from_frame(image)
+        except ValueError:
+            return FaceDetectionResult(
+                is_recognized=False,
+                client_id=None,
+                confidence=None,
+                face_location=None
+            )
+        
+        # Find matching client
+        client, confidence = face_service.find_matching_client(face_encoding, db)
+        
+        if client:
+            # Log a visit in the background
+            background_tasks.add_task(
+                log_entry_visit,
+                client_id=client.id,
+                db=db
+            )
+            
+            return FaceDetectionResult(
+                is_recognized=True,
+                client_id=client.id,
+                client_name=f"{client.first_name} {client.last_name}",
+                confidence=confidence,
+                face_location=list(face_location)
+            )
+        else:
+            return FaceDetectionResult(
+                is_recognized=False,
+                client_id=None,
+                client_name=None,
+                confidence=None,
+                face_location=list(face_location)
+            )
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing image: {str(e)}"
+        )
+
+
+@router.post("/detect-exit")
+async def detect_exit_face(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Chiqish kamerasi uchun yuzni aniqlash va tashrifni yakunlash
+    """
+    try:
+        # Read image from request
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if image is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid image"
+            )
+        
+        # Extract face encoding
+        try:
+            face_encoding, face_location = face_service.encode_face_from_frame(image)
+        except ValueError:
+            return FaceDetectionResult(
+                is_recognized=False,
+                client_id=None,
+                confidence=None,
+                face_location=None
+            )
+        
+        # Find matching client
+        client, confidence = face_service.find_matching_client(face_encoding, db)
+        
+        if client:
+            # Checkout visit in the background
+            background_tasks.add_task(
+                log_exit_visit,
+                client_id=client.id,
+                db=db
+            )
+            
+            return FaceDetectionResult(
+                is_recognized=True,
+                client_id=client.id,
+                client_name=f"{client.first_name} {client.last_name}",
+                confidence=confidence,
+                face_location=list(face_location)
+            )
+        else:
+            return FaceDetectionResult(
+                is_recognized=False,
+                client_id=None,
+                client_name=None,
+                confidence=None,
+                face_location=list(face_location)
+            )
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing image: {str(e)}"
+        )
+
+
+def log_entry_visit(client_id: int, db: Session):
+    """
+    Mijoz kirish tashrifini ro'yxatga olish
+    """
+    # Avval tugallanmagan tashrif bor-yo'qligini tekshirish
+    active_visit = db.query(Visit).filter(
+        Visit.client_id == client_id,
+        Visit.exit_time.is_(None)
+    ).first()
+    
+    # Agar faol tashrif bo'lsa, yangi tashrif yaratmaymiz
+    if active_visit:
+        return
+    
+    visit = Visit(
+        client_id=client_id,
+        entry_time=datetime.utcnow(),
+        purpose="Auto detected by face recognition (Entry)"
+    )
+    
+    db.add(visit)
+    db.commit()
+    
+    # Get recommendations and save them to the visit
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if client:
+        recommendations = recommendation_engine.get_recommendations(client, db)
+        recommendations_data = []
+        
+        for car, score in recommendations:
+            recommendations_data.append({
+                "car_id": car.id,
+                "name": f"{car.brand} {car.model}",
+                "interest_score": score
+            })
+        
+        visit.recommendations = json.dumps(recommendations_data)
+        db.add(visit)
+        db.commit()
+
+def log_exit_visit(client_id: int, db: Session):
+    """
+    Mijoz chiqish tashrifini ro'yxatga olish (exit_time ni qo'shish)
+    """
+    # Mijozning eng so'nggi tugallanmagan tashrifini topish
+    active_visit = db.query(Visit).filter(
+        Visit.client_id == client_id,
+        Visit.exit_time.is_(None)
+    ).order_by(Visit.entry_time.desc()).first()
+    
+    # Agar faol tashrif bo'lsa, uni yakunlaymiz
+    if active_visit:
+        active_visit.exit_time = datetime.utcnow()
+        db.add(active_visit)
+        db.commit() 

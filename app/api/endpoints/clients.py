@@ -55,7 +55,8 @@ def create_client(client: ClientCreate, db: Session = Depends(get_db)):
         interests=client.interests,
         budget=client.budget,
         has_credit=has_credit,
-        workplace=client.workplace
+        workplace=client.workplace,
+        purpose=client.purpose  # Tashrif maqsadi
     )
     
     db.add(db_client)

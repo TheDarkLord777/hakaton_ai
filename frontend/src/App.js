@@ -27,6 +27,7 @@ function App() {
                 <Route path="/history" element={<History />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/clients/:clientId" element={<ClientRegister />} />
+                <Route path="/live-detection" element={<LiveDetection />} />
               </Routes>
             </Layout>
           </div>

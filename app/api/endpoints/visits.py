@@ -21,7 +21,17 @@ def read_visits(
     Retrieve visits.
     """
     visits = db.query(Visit).offset(skip).limit(limit).all()
-    return visits
+    
+    # Purpose maydonini tekshirib, to'g'ri qaytarish
+    result = []
+    for visit in visits:
+        # Purpose maydoni to'g'ri qaytarilishini ta'minlash
+        if visit.purpose is None:
+            visit.purpose = "Not specified"
+        
+        result.append(visit)
+    
+    return result
 
 
 @router.get("/current", response_model=List[VisitWithClient])

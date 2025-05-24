@@ -18,6 +18,7 @@ class Client(Base):
     budget = Column(Float, nullable=True)
     has_credit = Column(String, nullable=True)  # Kredit bor/yo'qligi
     workplace = Column(String, nullable=True)   # Ish joyi
+    purpose = Column(String, nullable=True)     # Tashrif maqsadi
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

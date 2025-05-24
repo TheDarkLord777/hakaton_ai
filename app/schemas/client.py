@@ -18,6 +18,7 @@ class ClientBase(BaseModel):
     family_members: int = 0
     is_student: bool = False
     workplace: Optional[str] = None
+    purpose: Optional[str] = None  # Tashrif maqsadi
 
     @validator('gender')
     def validate_gender(cls, v):
@@ -32,6 +33,22 @@ class ClientBase(BaseModel):
             valid_options = ['Yes', 'No']
             if v not in valid_options:
                 raise ValueError(f'Has credit must be one of: {", ".join(valid_options)}')
+        return v
+
+    @validator('purpose')
+    def validate_purpose(cls, v):
+        if v is not None and v != "":
+            valid_purposes = [
+                'View new cars', 
+                'Access services', 
+                'Schedule test drive', 
+                'Manage documents', 
+                'Get information', 
+                'Purchase car', 
+                'Other'
+            ]
+            if v not in valid_purposes:
+                raise ValueError(f'Purpose must be one of: {", ".join(valid_purposes)}')
         return v
 
 
@@ -54,6 +71,7 @@ class ClientUpdate(BaseModel):
     family_members: Optional[int] = None
     is_student: Optional[bool] = None
     workplace: Optional[str] = None
+    purpose: Optional[str] = None  # Tashrif maqsadi
 
 
 class ClientInDB(ClientBase):

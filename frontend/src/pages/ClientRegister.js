@@ -28,7 +28,8 @@ const ClientRegister = () => {
     interests: '',
     budget: '',
     has_credit: '',
-    workplace: ''
+    workplace: '',
+    purpose: ''
   });
 
   // Familiya o'zgarganda jinsni avtomatik aniqlash
@@ -68,7 +69,8 @@ const ClientRegister = () => {
             interests: data.interests || '',
             budget: data.budget || '',
             has_credit: data.has_credit || '',
-            workplace: data.workplace || ''
+            workplace: data.workplace || '',
+            purpose: data.purpose || ''
           });
           setIsLoading(false);
         })
@@ -333,6 +335,30 @@ const ClientRegister = () => {
                       <option value="No">No</option>
                   </select>
                 </div>
+                <div>
+                    <label htmlFor="purpose" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Visit Purpose
+                  </label>
+                  <select
+                    id="purpose"
+                    name="purpose"
+                    value={formData.purpose}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                  >
+                    <option value="">Select Purpose</option>
+                    <option value="View new cars">View new cars</option>
+                    <option value="Access services">Access services</option>
+                    <option value="Schedule test drive">Schedule test drive</option>
+                    <option value="Manage documents">Manage documents</option>
+                    <option value="Get information">Get information</option>
+                    <option value="Purchase car">Purchase car</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label htmlFor="workplace" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Workplace

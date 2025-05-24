@@ -10,6 +10,13 @@ class VisitBase(BaseModel):
     purpose: Optional[str] = None
     recommendations: Optional[Any] = None
     
+    # Purpose maydoni uchun validator qo'shish
+    @validator('purpose', pre=True)
+    def validate_purpose(cls, v):
+        if v is None:
+            return "Not specified"
+        return v
+    
     # Recommendations uchun validator qo'shish
     @validator('recommendations', pre=True)
     def parse_recommendations(cls, v):
