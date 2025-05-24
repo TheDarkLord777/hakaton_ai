@@ -31,8 +31,19 @@ def read_current_visits(db: Session = Depends(get_db)) -> Any:
     """
     visits = db.query(Visit).filter(Visit.exit_time.is_(None)).all()
     
-    # JSON stringlarni deserialize qilish kerak emas, schema Any turga o'zgartirildi
-    return visits
+    # Ma'lumotlarni to'g'ri formatda qaytarish
+    result = []
+    for visit in visits:
+        # Recommendations JSON string bo'lsa, uni dict ga o'zgartirish
+        if visit.recommendations and isinstance(visit.recommendations, str):
+            try:
+                visit.recommendations = json.loads(visit.recommendations)
+            except:
+                visit.recommendations = None
+        
+        result.append(visit)
+    
+    return result
 
 
 @router.post("/", response_model=VisitSchema)

@@ -72,6 +72,7 @@ async def detect_face(
             return FaceDetectionResult(
                 is_recognized=True,
                 client_id=client.id,
+                client_name=f"{client.first_name} {client.last_name}",
                 confidence=confidence,
                 face_location=list(face_location)
             )
@@ -79,6 +80,7 @@ async def detect_face(
             return FaceDetectionResult(
                 is_recognized=False,
                 client_id=None,
+                client_name=None,
                 confidence=None,
                 face_location=list(face_location)
             )

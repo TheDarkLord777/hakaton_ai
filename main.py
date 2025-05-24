@@ -4,13 +4,13 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
 from app.db.base import engine, Base
-from app.db.init_db import create_sample_data  # Import sample data function
+# from app.db.init_db import create_sample_data  # Import sample data function - vaqtincha o'chirib qo'yamiz
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
 # Initialize database with sample data
-create_sample_data()  # Add this line to create sample data
+# create_sample_data()  # Bu qatorni vaqtincha kommentariyaga olib qo'yamiz
 
 app = FastAPI(
     title="AutoClientAI",

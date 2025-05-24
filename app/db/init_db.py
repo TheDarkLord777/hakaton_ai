@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timedelta
 import random
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.models.models import Client, Car, Visit
 from app.db.base import engine, Base, SessionLocal
@@ -12,11 +13,11 @@ def add_lastname_to_clients(db: Session):
     """Add last_name column to clients table if it doesn't exist"""
     try:
         # Check if column exists
-        db.execute("SELECT last_name FROM clients LIMIT 1")
+        db.execute(text("SELECT last_name FROM clients LIMIT 1"))
         print("last_name column already exists")
     except:
         # Add column
-        db.execute("ALTER TABLE clients ADD COLUMN last_name VARCHAR")
+        db.execute(text("ALTER TABLE clients ADD COLUMN last_name VARCHAR"))
         db.commit()
         print("Added last_name column to clients table")
 
@@ -24,13 +25,13 @@ def add_columns_to_clients(db: Session):
     """Add new columns to clients table if they don't exist"""
     try:
         # Check if columns exist
-        db.execute("SELECT has_credit, workplace FROM clients LIMIT 1")
+        db.execute(text("SELECT has_credit, workplace FROM clients LIMIT 1"))
         print("has_credit and workplace columns already exist")
     except:
         try:
             # Add columns
-            db.execute("ALTER TABLE clients ADD COLUMN has_credit VARCHAR")
-            db.execute("ALTER TABLE clients ADD COLUMN workplace VARCHAR")
+            db.execute(text("ALTER TABLE clients ADD COLUMN has_credit VARCHAR"))
+            db.execute(text("ALTER TABLE clients ADD COLUMN workplace VARCHAR"))
             db.commit()
             print("Added has_credit and workplace columns to clients table")
         except Exception as e:

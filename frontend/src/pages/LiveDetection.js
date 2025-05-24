@@ -295,7 +295,7 @@ const LiveDetection = () => {
                       <div 
                         className={`absolute -top-7 left-0 ${face.is_recognized ? 'bg-green-500' : 'bg-yellow-500'} text-white px-2 py-1 text-xs font-bold rounded-t-md`}
                       >
-                        {face.is_recognized ? `Client #${face.client_id}` : `New Visitor #${index + 1}`}
+                        {face.is_recognized ? (face.client_name || `Client #${face.client_id}`) : `New Visitor #${index + 1}`}
                       </div>
                     </div>
                   ))}
@@ -366,7 +366,7 @@ const LiveDetection = () => {
                             </div>
                             <div className="ml-3">
                               <h5 className="text-sm font-medium text-green-800 dark:text-green-300">
-                                Client #{client.client_id}
+                                {client.client_name || `Client #${client.client_id}`}
                               </h5>
                               <p className="text-xs text-green-600 dark:text-green-400">
                                 Confidence: {client.confidence.toFixed(2)}%

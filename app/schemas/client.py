@@ -11,8 +11,8 @@ class ClientBase(BaseModel):
     phone: Optional[str] = None
     interests: Optional[str] = None
     budget: Optional[float] = None
-    marital_status: str
-    job_title: str
+    marital_status: Optional[str] = None
+    job_title: Optional[str] = None
     has_car: bool = False
     has_credit: Optional[str] = None
     family_members: int = 0
@@ -28,7 +28,7 @@ class ClientBase(BaseModel):
 
     @validator('has_credit')
     def validate_has_credit(cls, v):
-        if v is not None:
+        if v is not None and v != "":
             valid_options = ['Yes', 'No']
             if v not in valid_options:
                 raise ValueError(f'Has credit must be one of: {", ".join(valid_options)}')
@@ -62,7 +62,7 @@ class ClientInDB(ClientBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class Client(ClientInDB):
@@ -73,4 +73,4 @@ class ClientWithVisits(Client):
     visits: List["VisitBase"] = []
 
     class Config:
-        orm_mode = True 
+        from_attributes = True 

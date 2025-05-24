@@ -34,7 +34,7 @@ class CarInDB(CarBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class Car(CarInDB):
@@ -45,4 +45,4 @@ class CarWithInterest(Car):
     interest_score: float = Field(..., ge=0, le=100)
 
     class Config:
-        orm_mode = True 
+        from_attributes = True

@@ -18,7 +18,7 @@ class FaceEncodingInDB(FaceEncodingBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # orm_mode o'rniga from_attributes
 
 
 class FaceEncoding(FaceEncodingInDB):
@@ -28,5 +28,6 @@ class FaceEncoding(FaceEncodingInDB):
 class FaceDetectionResult(BaseModel):
     is_recognized: bool
     client_id: Optional[int] = None
+    client_name: Optional[str] = None  # Mijoz ismini qo'shamiz
     confidence: Optional[float] = None
     face_location: Optional[List[int]] = None  # [top, right, bottom, left] 

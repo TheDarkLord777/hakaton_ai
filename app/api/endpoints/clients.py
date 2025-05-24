@@ -34,6 +34,9 @@ def create_client(client: ClientCreate, db: Session = Depends(get_db)):
         else:
             client.gender = "Male"
             
+    # Bo'sh qatorni None ga o'zgartirish
+    has_credit = client.has_credit if client.has_credit and client.has_credit.strip() else None
+            
     db_client = Client(
         first_name=client.first_name,
         last_name=client.last_name,
@@ -42,7 +45,7 @@ def create_client(client: ClientCreate, db: Session = Depends(get_db)):
         phone=client.phone,
         interests=client.interests,
         budget=client.budget,
-        has_credit=client.has_credit,
+        has_credit=has_credit,
         workplace=client.workplace
     )
     
@@ -88,6 +91,11 @@ def update_client(
         )
     
     update_data = client_in.dict(exclude_unset=True)
+    
+    # Bo'sh qatorni None ga o'zgartirish
+    if "has_credit" in update_data and update_data["has_credit"] and not update_data["has_credit"].strip():
+        update_data["has_credit"] = None
+    
     for field, value in update_data.items():
         setattr(client, field, value)
     

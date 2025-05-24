@@ -20,6 +20,15 @@ def read_cars(
     Retrieve cars.
     """
     cars = db.query(Car).offset(skip).limit(limit).all()
+    
+    # Convert features from JSON string to dict for each car
+    for car in cars:
+        if car.features:
+            try:
+                car.features = json.loads(car.features)
+            except:
+                car.features = {}
+    
     return cars
 
 
@@ -49,6 +58,14 @@ def create_car(
     db.add(car)
     db.commit()
     db.refresh(car)
+    
+    # Convert features from JSON string to dict for response
+    if car.features:
+        try:
+            car.features = json.loads(car.features)
+        except:
+            car.features = {}
+    
     return car
 
 
@@ -67,6 +84,14 @@ def read_car(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Car not found"
         )
+    
+    # Convert features from JSON string to dict
+    if car.features:
+        try:
+            car.features = json.loads(car.features)
+        except:
+            car.features = {}
+    
     return car
 
 
@@ -99,6 +124,14 @@ def update_car(
     db.add(car)
     db.commit()
     db.refresh(car)
+    
+    # Convert features from JSON string to dict for response
+    if car.features:
+        try:
+            car.features = json.loads(car.features)
+        except:
+            car.features = {}
+    
     return car
 
 
@@ -118,6 +151,13 @@ def delete_car(
             detail="Car not found"
         )
     
+    # Convert features from JSON string to dict before returning
+    if car.features:
+        try:
+            car.features = json.loads(car.features)
+        except:
+            car.features = {}
+    
     db.delete(car)
     db.commit()
-    return car 
+    return car

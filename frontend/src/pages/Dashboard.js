@@ -164,8 +164,12 @@ const Dashboard = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div>
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">{visit.client.name}</div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">{visit.client.job_title}</div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                {visit.client.first_name} {visit.client.last_name}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                {visit.client.workplace || 'No workplace info'}
+                              </div>
                             </div>
                           </div>
                         </td>
