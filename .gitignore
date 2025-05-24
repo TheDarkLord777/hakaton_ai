@@ -1,0 +1,27 @@
+# Python cache fayllari
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# IDE fayllari
+.vscode/
+.idea/
+
+# OS fayllari
+.DS_Store
+Thumbs.db
+
+# Secret configlar
+.env
+*.env
+*.sqlite3
+
+.cursor/
+
+frontend/node_modules/
+
+
