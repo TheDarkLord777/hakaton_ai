@@ -1,13 +1,59 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
-import { CameraIcon, UserPlusIcon, ArrowPathIcon, ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { 
+  CameraIcon, 
+  UserPlusIcon, 
+  ArrowPathIcon, 
+  ArrowLeftIcon, 
+  ArrowRightIcon,
+  ChevronRightIcon,
+  TruckIcon,
+  CurrencyDollarIcon, 
+  TagIcon,
+  UserIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/outline';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toaster';
-import { detectFace, getRecommendations, detectEntryFace, detectExitFace } from '../utils/api';
+import { detectFace, getRecommendations, detectEntryFace, detectExitFace, getClient } from '../utils/api';
+
+// Global o'zgaruvchi sifatida tavsiya qilinadigan mashinalar
+const FALLBACK_RECOMMENDATIONS = [
+  {
+    id: 1,
+    brand: "Toyota",
+    model: "Camry",
+    price: 35000,
+    year: 2023,
+    category: "Sedan",
+    interest_score: 85,
+    image_url: "https://imageio.forbes.com/specials-images/imageserve/5d35eacaf1176b0008974b54/2020-Toyota-Camry-TRD/0x0.jpg"
+  },
+  {
+    id: 2,
+    brand: "Honda",
+    model: "CR-V",
+    price: 32000,
+    year: 2023,
+    category: "SUV",
+    interest_score: 78,
+    image_url: "https://cdn.motor1.com/images/mgl/kXYMm/s1/2020-honda-cr-v-exterior.jpg"
+  },
+  {
+    id: 3,
+    brand: "Tesla",
+    model: "Model 3",
+    price: 45000,
+    year: 2023,
+    category: "Electric",
+    interest_score: 92,
+    image_url: "https://cdn.motor1.com/images/mgl/qkxn8/s1/tesla-model-3-2021.jpg"
+  }
+];
 
 const LiveDetection = () => {
   const webcamRef = useRef(null);
@@ -53,6 +99,9 @@ const LiveDetection = () => {
   const [entryDeviceId, setEntryDeviceId] = useState('');
   const [exitDeviceId, setExitDeviceId] = useState('');
   const [loadingCameras, setLoadingCameras] = useState(false);
+
+  const [recommendedCars, setRecommendedCars] = useState([]);
+  const [showRecommendations, setShowRecommendations] = useState(false);
 
   const handleCameraError = useCallback((error) => {
     console.error('Camera error:', error);
@@ -361,6 +410,8 @@ const LiveDetection = () => {
   const startEntryDetection = () => {
     setIsEntryDetecting(true);
     setEntryDetectionResult(null);
+    setRecommendedCars([]);
+    setShowRecommendations(false);
 
     entryIntervalRef.current = setInterval(() => {
       captureAndDetectEntry();
@@ -384,6 +435,10 @@ const LiveDetection = () => {
       clearInterval(entryIntervalRef.current);
       entryIntervalRef.current = null;
     }
+    // Tavsiyalarni 30 soniyadan keyin yashirish
+    setTimeout(() => {
+      setShowRecommendations(false);
+    }, 30000);
   };
 
   // Chiqish deteksiyasini to'xtatish
@@ -420,14 +475,23 @@ const LiveDetection = () => {
         // API ga jo'natish
         const result = await detectEntryFace(blob);
 
-        setEntryDetectionResult(result);
+        // 60% confidence level check - muhim qism!
+        const isConfidentMatch = result.is_recognized && result.confidence >= 60;
+        
+        // O'zgartirilgan natija - 60% dan kam bo'lsa tanilmagan deb hisoblanadi
+        const processedResult = {
+          ...result,
+          is_recognized: isConfidentMatch
+        };
+        
+        setEntryDetectionResult(processedResult);
 
-        // Agar yuz aniqlangan bo'lsa
-        if (result.is_recognized) {
+        // Agar yuz aniq tasdiqlangan bo'lsa (60%+ confidence)
+        if (isConfidentMatch) {
           // Yuz atrofida ramka chizish
           if (result.face_location) {
             const [top, right, bottom, left] = result.face_location;
-            context.strokeStyle = '#00FF00';
+            context.strokeStyle = '#00FF00'; // Yashil - tasdiqlangan
             context.lineWidth = 2;
             context.strokeRect(left, top, right - left, bottom - top);
 
@@ -438,12 +502,153 @@ const LiveDetection = () => {
           }
 
           // Muvaffaqiyatli xabar ko'rsatish
-          addToast(`Entry detected: ${result.client_name}`, 'success');
+          addToast(`Client recognized: ${result.client_name} (${Math.round(result.confidence * 100)}%)`, 'success');
           
-          // 3 soniya kutib, deteksiyani to'xtatish
+          // Mijoz to'liq ma'lumotlarini olish
+          try {
+            const clientData = await getClient(result.client_id);
+            // Mavjud natijaga mijoz ma'lumotlarini qo'shish
+            setEntryDetectionResult(prev => ({
+              ...prev,
+              client_data: clientData
+            }));
+            
+            // Mijoz uchun tavsiyalarni olish
+            setLoadingRecommendations(true);
+            try {
+              const recommendations = await getRecommendations(result.client_id);
+              setRecommendedCars(recommendations);
+              setShowRecommendations(true);
+            } catch (error) {
+              console.error("Error fetching recommendations:", error);
+              
+              // Mijoz ma'lumotlariga qarab default tavsiyalar
+              let defaultRecs = [...FALLBACK_RECOMMENDATIONS];
+              
+              // Yoshi bo'yicha
+              if (clientData.age < 25) {
+                defaultRecs[0].interest_score = 85; // Yoshlar uchun eng yuqori
+              } else if (clientData.age >= 40) {
+                // Kattalar uchun luxury mashinalar
+                defaultRecs = [
+                  {
+                    id: 4,
+                    brand: "Lexus",
+                    model: "ES",
+                    price: 45000,
+                    year: 2023,
+                    category: "Luxury",
+                    image_url: "https://cdn.motor1.com/images/mgl/P33JQE/s1/2023-bmw-5er-rendering.jpg",
+                    interest_score: 85
+                  },
+                  ...defaultRecs
+                ];
+              }
+              
+              // Jinsi bo'yicha
+              if (clientData.gender === "Female") {
+                // Ayollar uchun fuel efficient mashinalar
+                defaultRecs.forEach(car => {
+                  if (car.category === "Sedan") {
+                    car.interest_score += 5;
+                  }
+                });
+              }
+              
+              // Budjet bo'yicha
+              if (clientData.budget) {
+                const budget = clientData.budget;
+                defaultRecs = defaultRecs.filter(car => car.price <= budget * 1.1); // Budjetdan 10% ko'p bo'lgan mashinalarni ham ko'rsatish
+                
+                if (defaultRecs.length === 0) {
+                  // Agar hech qanday mashina topilmasa, eng arzonini qo'shish
+                  defaultRecs = [FALLBACK_RECOMMENDATIONS[0]];
+                }
+              }
+              
+              // Kredit bo'yicha
+              if (clientData.has_credit === "No") {
+                // Kredit yo'q mijozlar uchun arzon mashinalarni tavsiya qilish
+                defaultRecs = defaultRecs.filter(car => car.price < 30000);
+                
+                if (defaultRecs.length === 0) {
+                  // Agar hech qanday mashina topilmasa, eng arzonini qo'shish
+                  defaultRecs = [FALLBACK_RECOMMENDATIONS[0]];
+                }
+              }
+              
+              setRecommendedCars(defaultRecs);
+              setShowRecommendations(true);
+              addToast("Using personalized car recommendations", "info");
+            } finally {
+              setLoadingRecommendations(false);
+            }
+          } catch (error) {
+            console.error("Error fetching client details:", error);
+            
+            // Xato bo'lganda oddiy mashinalar ro'yxatini ko'rsatish
+            setRecommendedCars(FALLBACK_RECOMMENDATIONS);
+            setShowRecommendations(true);
+          }
+          
+          // 10 soniya kutib, deteksiyani to'xtatish
           setTimeout(() => {
             stopEntryDetection();
-          }, 3000);
+          }, 10000);
+        } 
+        // Agar yuz aniqlangan, lekin confidence past bo'lsa (< 60%)
+        else if (result.is_recognized && result.confidence < 60) {
+          // Yuz atrofida sariq ramka chizish
+          if (result.face_location) {
+            const [top, right, bottom, left] = result.face_location;
+            context.strokeStyle = '#FFA500'; // Sariq - confidence past
+            context.lineWidth = 2;
+            context.strokeRect(left, top, right - left, bottom - top);
+            
+            // Xabar
+            context.fillStyle = '#FFA500';
+            context.font = '16px Arial';
+            context.fillText(`Unconfirmed (${Math.round(result.confidence * 100)}%)`, left, top - 10);
+          }
+          
+          // Xabar ko'rsatish
+          addToast(`Face detected but confidence too low (${Math.round(result.confidence * 100)}%)`, 'warning');
+          
+          // Default mashinalar tavsiyasini ko'rsatish
+          setRecommendedCars(FALLBACK_RECOMMENDATIONS);
+          setShowRecommendations(true);
+          
+          // 5 soniya kutib, deteksiyani to'xtatish
+          setTimeout(() => {
+            stopEntryDetection();
+          }, 5000);
+        }
+        // Agar yuz tanilmagan bo'lsa (yangi mehmon)
+        else {
+          // Yuz atrofida qizil ramka chizish
+          if (result.face_location) {
+            const [top, right, bottom, left] = result.face_location;
+            context.strokeStyle = '#FF3B30'; // Qizil - tanilmagan
+            context.lineWidth = 2;
+            context.strokeRect(left, top, right - left, bottom - top);
+            
+            // Xabar
+            context.fillStyle = '#FF3B30';
+            context.font = '16px Arial';
+            context.fillText('Unregistered User', left, top - 10);
+          }
+          
+          // Xabar ko'rsatish
+          addToast('Unregistered visitor detected', 'info');
+          
+          // Default mashinalar tavsiyasini ko'rsatish
+          setRecommendedCars(FALLBACK_RECOMMENDATIONS);
+          setShowRecommendations(true);
+          
+          // 5 soniya kutib, deteksiyani to'xtatish
+          setTimeout(() => {
+            stopEntryDetection();
+          }, 5000);
         }
       } catch (error) {
         console.error('Entry detection error:', error);
@@ -639,6 +844,123 @@ const LiveDetection = () => {
                   </Button>
                 )}
               </div>
+
+              {/* Mijoz ma'lumotlari bloki */}
+              {entryDetectionResult && (
+                <div className="mt-4">
+                  {entryDetectionResult.is_recognized ? (
+                    // Tanilgan mijoz uchun
+                    <>
+                      <div className="font-bold text-lg flex items-center">
+                        <UserIcon className="h-5 w-5 mr-2 text-green-500" />
+                        Client Information
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md mt-2 text-sm">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Name:</span> {entryDetectionResult.client_name}
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Age:</span> {entryDetectionResult.client_data?.age || 'N/A'}
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Gender:</span> {entryDetectionResult.client_data?.gender || 'N/A'}
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Budget:</span> {entryDetectionResult.client_data?.budget 
+                              ? `$${entryDetectionResult.client_data.budget.toLocaleString()}` 
+                              : 'N/A'}
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Purpose:</span> {entryDetectionResult.client_data?.purpose || 'N/A'}
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-gray-400">Credit:</span> {entryDetectionResult.client_data?.has_credit || 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    // Tanilmagan mijoz uchun
+                    <>
+                      <div className="font-bold text-lg flex items-center">
+                        <ExclamationTriangleIcon className="h-5 w-5 mr-2 text-yellow-500" />
+                        Unregistered Visitor
+                      </div>
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md mt-2 text-sm border border-yellow-200 dark:border-yellow-800">
+                        <p className="text-yellow-800 dark:text-yellow-200">
+                          This visitor is not registered in the system. Would you like to register them?
+                        </p>
+                        <div className="mt-3">
+                          <Button 
+                            variant="secondary" 
+                            onClick={() => navigate('/register')}
+                            className="flex items-center"
+                          >
+                            <UserPlusIcon className="h-4 w-4 mr-2" />
+                            Register New Client
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Mashinalar tavsiyasi bloki */}
+              {showRecommendations && (
+                <div className="mt-4">
+                  <div className="font-bold text-lg flex items-center">
+                    <TruckIcon className="h-5 w-5 mr-2 text-blue-500" />
+                    {entryDetectionResult?.is_recognized 
+                      ? "Personalized Car Recommendations" 
+                      : "Popular Car Models"}
+                  </div>
+                  
+                  {loadingRecommendations ? (
+                    <div className="flex justify-center p-4">
+                      <Spinner size="md" />
+                    </div>
+                  ) : recommendedCars.length > 0 ? (
+                    <div className="space-y-3 mt-2">
+                      {recommendedCars.map(car => (
+                        <div key={car.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-3 shadow-sm">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-medium text-base">{car.brand} {car.model}</div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">{car.category} • {car.year}</div>
+                              
+                              <div className="mt-2 flex items-center">
+                                <CurrencyDollarIcon className="h-4 w-4 text-green-600 mr-1" />
+                                <span className="text-sm font-medium">${car.price.toLocaleString()}</span>
+                              </div>
+                              
+                              <div className="mt-1 flex items-center">
+                                <TagIcon className="h-4 w-4 text-blue-600 mr-1" />
+                                <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
+                                  {entryDetectionResult?.is_recognized 
+                                    ? `Match: ${Math.round(car.interest_score)}%` 
+                                    : "Popular Model"}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {car.image_url && (
+                              <div className="w-20 h-20 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
+                                <img src={car.image_url} alt={`${car.brand} ${car.model}`} className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center p-4 text-gray-500 dark:text-gray-400">
+                      No recommendations available
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 

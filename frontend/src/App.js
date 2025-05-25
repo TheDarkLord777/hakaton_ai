@@ -11,6 +11,7 @@ import Analytics from './pages/Analytics';
 import { ToastProvider } from './components/ui/Toaster';
 import { ThemeProvider } from './utils/ThemeContext';
 
+
 function App() {
   return (
     <Router>

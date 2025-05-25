@@ -5,6 +5,9 @@ import {
   ClockIcon, 
   ChevronRightIcon,
   ChevronLeftIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  FolderIcon,
   FunnelIcon,
   ArrowsUpDownIcon,
   UserIcon,
@@ -30,6 +33,11 @@ const History = () => {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all'); // all, today, week, month
   const [purposeFilter, setPurposeFilter] = useState('all');
+  
+  // Mijozlar guruhi uchun qo'shimcha state
+  const [groupedClients, setGroupedClients] = useState({});
+  const [expandedClientIds, setExpandedClientIds] = useState({});
+  const [viewMode, setViewMode] = useState('grouped'); // 'grouped' or 'flat'
 
   useEffect(() => {
     const fetchVisits = async () => {
@@ -39,11 +47,6 @@ const History = () => {
         
         // Debug uchun
         console.log('Raw visits data:', data);
-        if (Array.isArray(data)) {
-          data.forEach((visit, index) => {
-            console.log(`Visit ${index + 1} purpose:`, visit.purpose);
-          });
-        }
         
         // Check if data is array and has items
         if (Array.isArray(data) && data.length > 0) {
@@ -59,16 +62,45 @@ const History = () => {
           
           setFilteredVisits(sorted);
           setTotalPages(Math.ceil(sorted.length / ITEMS_PER_PAGE));
+          
+          // Mijozlar bo'yicha tashrif ma'lumotlarini guruhlash
+          const groupedByClient = {};
+          
+          data.forEach(visit => {
+            if (visit.client && visit.client_id) {
+              const clientId = visit.client_id;
+              if (!groupedByClient[clientId]) {
+                groupedByClient[clientId] = {
+                  client: visit.client,
+                  visits: []
+                };
+              }
+              groupedByClient[clientId].visits.push(visit);
+            }
+          });
+          
+          // Har bir mijoz uchun tashriflarni vaqt bo'yicha tartiblash
+          Object.keys(groupedByClient).forEach(clientId => {
+            groupedByClient[clientId].visits.sort((a, b) => {
+              return sortOrder === 'desc' 
+                ? new Date(b.entry_time) - new Date(a.entry_time)
+                : new Date(a.entry_time) - new Date(b.entry_time);
+            });
+          });
+          
+          setGroupedClients(groupedByClient);
         } else {
           setVisits([]);
           setFilteredVisits([]);
           setTotalPages(0);
+          setGroupedClients({});
         }
       } catch (err) {
         console.error('Error fetching visits:', err);
         setError('Failed to load visit history');
         setVisits([]);
         setFilteredVisits([]);
+        setGroupedClients({});
         addToast('Failed to load visit history', 'error');
       } finally {
         setLoading(false);
@@ -276,6 +308,33 @@ const History = () => {
     return stats;
   };
 
+  // Mijoz papkasini ochish/yopish
+  const toggleClientFolder = (clientId) => {
+    setExpandedClientIds(prev => ({
+      ...prev,
+      [clientId]: !prev[clientId]
+    }));
+  };
+
+  // Ko'rinish rejimini almashtirish
+  const toggleViewMode = () => {
+    setViewMode(viewMode === 'grouped' ? 'flat' : 'grouped');
+  };
+
+  // Mijozlarni sahifalash
+  const paginatedClients = () => {
+    try {
+      const clientIds = Object.keys(groupedClients);
+      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      return clientIds.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    } catch (e) {
+      console.error("Error paginating clients:", e);
+      return [];
+    }
+  };
+
+  const totalClientsPages = Math.ceil(Object.keys(groupedClients).length / ITEMS_PER_PAGE);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -292,12 +351,19 @@ const History = () => {
       </div>
     );
   }
-  console.log(visits);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Visit History</h1>
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            className="flex items-center space-x-2"
+            onClick={toggleViewMode}
+          >
+            <span>{viewMode === 'grouped' ? 'Show All Visits' : 'Group by Client'}</span>
+          </Button>
         <Button 
           variant="outline" 
           className="flex items-center space-x-2"
@@ -306,6 +372,7 @@ const History = () => {
           <ArrowDownTrayIcon className="w-5 h-5" />
           <span>Export</span>
         </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -388,14 +455,132 @@ const History = () => {
         <CardHeader>
           <CardTitle className="flex items-center">
             <ClockIcon className="w-6 h-6 mr-2" />
-            Visit Records
+            {viewMode === 'grouped' ? 'Clients Visit History' : 'Visit Records'}
           </CardTitle>
           <CardDescription>
-            Showing {filteredVisitsPerPage().length} visit records
+            {viewMode === 'grouped' 
+              ? `Showing ${Object.keys(groupedClients).length} clients` 
+              : `Showing ${filteredVisitsPerPage().length} visit records`}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {filteredVisitsPerPage().length === 0 ? (
+          {viewMode === 'grouped' ? (
+            // Mijozlar bo'yicha guruhlangan ko'rinish
+            Object.keys(groupedClients).length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 dark:text-gray-400">No clients found</p>
+                {filterDate && (
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                    Try changing your filter settings
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {paginatedClients().map(clientId => {
+                  const clientData = groupedClients[clientId];
+                  const isExpanded = expandedClientIds[clientId];
+                  const totalVisits = clientData.visits.length;
+                  const lastVisit = clientData.visits[0]; // Eng so'nggi tashrif
+                  const clientName = `${clientData.client.first_name} ${clientData.client.last_name}`;
+                  
+                  return (
+                    <div key={clientId} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                      {/* Mijoz papka sarlavhasi */}
+                      <div 
+                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 cursor-pointer"
+                        onClick={() => toggleClientFolder(clientId)}
+                      >
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                            <FolderIcon className="h-6 w-6 text-blue-500 dark:text-blue-400" />
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {clientName}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {totalVisits} visits • Last visit: {formatDateTime(lastVisit.entry_time).date}
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          {isExpanded ? (
+                            <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                          ) : (
+                            <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Mijozning tashriflari */}
+                      {isExpanded && (
+                        <div className="p-4">
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                              <thead className="bg-gray-50 dark:bg-gray-800">
+                                <tr>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Entry</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Exit</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Duration</th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Purpose</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
+                                {clientData.visits.map(visit => {
+                                  const entryTime = formatDateTime(visit.entry_time);
+                                  const exitTime = visit.exit_time ? formatDateTime(visit.exit_time) : null;
+                                  const duration = formatDuration(visit.entry_time, visit.exit_time);
+                                  const purpose = formatPurpose(visit.purpose);
+                                  
+                                  return (
+                                    <tr key={visit.id}>
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="text-sm text-gray-900 dark:text-white">{entryTime.time}</div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">{entryTime.date}</div>
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        {exitTime ? (
+                                          <>
+                                            <div className="text-sm text-gray-900 dark:text-white">{exitTime.time}</div>
+                                            <div className="text-sm text-gray-500 dark:text-gray-400">{exitTime.date}</div>
+                                          </>
+                                        ) : (
+                                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                            Active
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                          !visit.exit_time 
+                                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+                                            : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                                        }`}>
+                                          {duration}
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${purpose.colorClass}`}>
+                                          {purpose.text}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            // Oddiy tashrif ro'yxati ko'rinishi (o'zgarishsiz qoladi)
+            filteredVisitsPerPage().length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 dark:text-gray-400">No visits found</p>
               {filterDate && (
@@ -433,7 +618,7 @@ const History = () => {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                {visit.client?.name || 'Unknown'}
+                                  {visit.client ? `${visit.client.first_name} ${visit.client.last_name}` : 'Unknown'}
                               </div>
                               <div className="text-sm text-gray-500 dark:text-gray-400">
                                 {visit.client?.gender || 'N/A'}, {visit.client?.age || 'N/A'}
@@ -467,13 +652,13 @@ const History = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={purpose.colorClass}>
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${purpose.colorClass}`}>
                             {purpose.text}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {visit.client ? (
-                            <Link to={`/clients/${visit.client.id}`} className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300 flex items-center">
+                            {visit.client_id ? (
+                              <Link to={`/clients/${visit.client_id}`} className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300 flex items-center">
                               <span>Details</span>
                               <ChevronRightIcon className="w-4 h-4 ml-1" />
                             </Link>
@@ -487,10 +672,13 @@ const History = () => {
                 </tbody>
               </table>
             </div>
+            )
           )}
         </CardContent>
         
-        {filteredVisitsPerPage().length > 0 && (
+        {/* Pagination */}
+        {(viewMode === 'grouped' && Object.keys(groupedClients).length > 0) || 
+         (viewMode === 'flat' && filteredVisitsPerPage().length > 0) ? (
           <CardFooter className="border-t border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
             <div className="flex-1 flex justify-between sm:hidden">
               <Button
@@ -502,8 +690,8 @@ const History = () => {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setCurrentPage(Math.min(totalPagesPerFilter, currentPage + 1))}
-                disabled={currentPage === totalPagesPerFilter}
+                onClick={() => setCurrentPage(Math.min(viewMode === 'grouped' ? totalClientsPages : totalPagesPerFilter, currentPage + 1))}
+                disabled={currentPage === (viewMode === 'grouped' ? totalClientsPages : totalPagesPerFilter)}
               >
                 Next
               </Button>
@@ -513,9 +701,15 @@ const History = () => {
                 <p className="text-sm text-gray-700 dark:text-gray-300">
                   Showing <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
                   <span className="font-medium">
-                    {Math.min(currentPage * ITEMS_PER_PAGE, filteredVisitsPerPage().length)}
+                    {Math.min(currentPage * ITEMS_PER_PAGE, viewMode === 'grouped' 
+                      ? Object.keys(groupedClients).length 
+                      : filteredVisitsPerPage().length)}
                   </span>{' '}
-                  of <span className="font-medium">{filteredVisitsPerPage().length}</span> results
+                  of <span className="font-medium">
+                    {viewMode === 'grouped' 
+                      ? Object.keys(groupedClients).length 
+                      : filteredVisitsPerPage().length}
+                  </span> results
                 </p>
               </div>
               <div>
@@ -529,7 +723,7 @@ const History = () => {
                     <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
                   </button>
                   
-                  {[...Array(totalPagesPerFilter)].map((_, i) => (
+                  {[...Array(viewMode === 'grouped' ? totalClientsPages : totalPagesPerFilter)].map((_, i) => (
                     <button
                       key={i}
                       onClick={() => setCurrentPage(i + 1)}
@@ -544,8 +738,8 @@ const History = () => {
                   ))}
                   
                   <button
-                    onClick={() => setCurrentPage(Math.min(totalPagesPerFilter, currentPage + 1))}
-                    disabled={currentPage === totalPagesPerFilter}
+                    onClick={() => setCurrentPage(Math.min(viewMode === 'grouped' ? totalClientsPages : totalPagesPerFilter, currentPage + 1))}
+                    disabled={currentPage === (viewMode === 'grouped' ? totalClientsPages : totalPagesPerFilter)}
                     className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="sr-only">Next</span>
@@ -555,9 +749,10 @@ const History = () => {
               </div>
             </div>
           </CardFooter>
-        )}
+        ) : null}
       </Card>
 
+      {/* Statistics sections remain unchanged */}
       <div className="mt-4 mb-4">
         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Visit Purpose Statistics</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

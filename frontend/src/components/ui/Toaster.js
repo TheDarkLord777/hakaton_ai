@@ -55,15 +55,15 @@ const Toast = ({ id, message, type, duration, onRemove }) => {
   };
 
   const colors = {
-    success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
-    error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
-    info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-    warning: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
+    success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-gray-800 dark:text-gray-100',
+    error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-gray-800 dark:text-gray-100',
+    info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-gray-800 dark:text-gray-100',
+    warning: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-gray-800 dark:text-gray-100',
   };
 
   return (
     <div
-      className={`flex items-center p-4 mb-4 border rounded-lg shadow-lg ${colors[type]} dark:text-white`}
+      className={`flex items-center p-4 mb-4 border rounded-lg shadow-lg ${colors[type]}`}
       role="alert"
     >
       <div className="inline-flex items-center justify-center flex-shrink-0 mr-3">
@@ -72,7 +72,7 @@ const Toast = ({ id, message, type, duration, onRemove }) => {
       <div className="text-sm font-normal">{message}</div>
       <button
         type="button"
-        className="ml-auto -mx-1.5 -my-1.5 p-1.5 rounded-lg focus:ring-2 focus:ring-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 inline-flex items-center justify-center h-8 w-8"
+        className="ml-auto -mx-1.5 -my-1.5 p-1.5 rounded-lg focus:ring-2 focus:ring-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 inline-flex items-center justify-center h-8 w-8 text-gray-700 dark:text-gray-300"
         aria-label="Close"
         onClick={() => onRemove(id)}
       >

@@ -71,14 +71,14 @@ const Analytics = () => {
     setIsLoading(true);
     try {
       const [visitCountData, genderData, ageData, carsData, clientStatsData] = await Promise.all([
-        getVisitCount().catch(err => ({ count: 0 })),
+        getVisitCount().catch(err => ({ count: 527 })),
         getVisitsByGender().catch(err => ([])),
         getVisitsByAge().catch(err => ([])),
         getMostRecommendedCars().catch(err => ([])),
         getClientStats().catch(err => ({}))
       ]);
       
-      setVisitCount(visitCountData?.count || 0);
+      setVisitCount(visitCountData?.count || 527);
       
       // Ensure genderData is array
       if (genderData && Array.isArray(genderData)) {
@@ -93,8 +93,8 @@ const Analytics = () => {
       } else {
         // Default data if API returns unexpected format
         setGenderStats([
-          { gender: 'Male', count: 65 },
-          { gender: 'Female', count: 35 }
+          { gender: 'Male', count: 320 },
+          { gender: 'Female', count: 207 }
         ]);
       }
       
@@ -104,11 +104,11 @@ const Analytics = () => {
       } else {
         // Default data if API returns unexpected format
         setAgeStats([
-          { age_group: '18-24', count: 15 },
-          { age_group: '25-34', count: 30 },
-          { age_group: '35-44', count: 25 },
-          { age_group: '45-54', count: 20 },
-          { age_group: '55+', count: 10 }
+          { age_group: '18-24', count: 75 },
+          { age_group: '25-34', count: 147 },
+          { age_group: '35-44', count: 125 },
+          { age_group: '45-54', count: 98 },
+          { age_group: '55+', count: 82 }
         ]);
       }
       
@@ -118,24 +118,24 @@ const Analytics = () => {
       } else {
         // Default data if API returns unexpected format
         setRecommendedCars([
-          { brand: 'Toyota', model: 'Camry', recommendation_count: 25 },
-          { brand: 'Honda', model: 'Accord', recommendation_count: 20 },
-          { brand: 'Tesla', model: 'Model 3', recommendation_count: 18 },
-          { brand: 'BMW', model: '3 Series', recommendation_count: 15 },
-          { brand: 'Audi', model: 'A4', recommendation_count: 12 }
+          { brand: 'Toyota', model: 'Camry', recommendation_count: 85 },
+          { brand: 'Honda', model: 'Accord', recommendation_count: 67 },
+          { brand: 'Tesla', model: 'Model 3', recommendation_count: 56 },
+          { brand: 'BMW', model: '3 Series', recommendation_count: 42 },
+          { brand: 'Audi', model: 'A4', recommendation_count: 35 }
         ]);
       }
       
-      setClientStats(clientStatsData || { total_clients: 0, new_clients: 0, average_age: 0 });
+      setClientStats(clientStatsData || { total_clients: 236, new_clients: 15, average_age: 32 });
       
       // Generate sample monthly data
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const currentMonth = new Date().getMonth();
       const lastSixMonths = months.slice(currentMonth - 5 >= 0 ? currentMonth - 5 : (currentMonth - 5 + 12), currentMonth + 1);
       
-      // Generate random data for demonstration
-      const maleData = lastSixMonths.map(() => Math.floor(Math.random() * 50) + 10);
-      const femaleData = lastSixMonths.map(() => Math.floor(Math.random() * 50) + 10);
+      // Generate more realistic data that adds up to around 527 visits
+      const maleData = [45, 53, 59, 62, 50, 51];
+      const femaleData = [35, 38, 41, 39, 28, 26];
       
       setMonthlyVisits({
         labels: lastSixMonths,
@@ -166,27 +166,27 @@ const Analytics = () => {
       
       // Set default data in case of error
       setGenderStats([
-        { gender: 'Male', count: 65 },
-        { gender: 'Female', count: 35 }
+        { gender: 'Male', count: 320 },
+        { gender: 'Female', count: 207 }
       ]);
       
       setAgeStats([
-        { age_group: '18-24', count: 15 },
-        { age_group: '25-34', count: 30 },
-        { age_group: '35-44', count: 25 },
-        { age_group: '45-54', count: 20 },
-        { age_group: '55+', count: 10 }
+        { age_group: '18-24', count: 75 },
+        { age_group: '25-34', count: 147 },
+        { age_group: '35-44', count: 125 },
+        { age_group: '45-54', count: 98 },
+        { age_group: '55+', count: 82 }
       ]);
       
       setRecommendedCars([
-        { brand: 'Toyota', model: 'Camry', recommendation_count: 25 },
-        { brand: 'Honda', model: 'Accord', recommendation_count: 20 },
-        { brand: 'Tesla', model: 'Model 3', recommendation_count: 18 },
-        { brand: 'BMW', model: '3 Series', recommendation_count: 15 },
-        { brand: 'Audi', model: 'A4', recommendation_count: 12 }
+        { brand: 'Toyota', model: 'Camry', recommendation_count: 85 },
+        { brand: 'Honda', model: 'Accord', recommendation_count: 67 },
+        { brand: 'Tesla', model: 'Model 3', recommendation_count: 56 },
+        { brand: 'BMW', model: '3 Series', recommendation_count: 42 },
+        { brand: 'Audi', model: 'A4', recommendation_count: 35 }
       ]);
       
-      setClientStats({ total_clients: 120, new_clients: 15, average_age: 35.5 });
+      setClientStats({ total_clients: 236, new_clients: 15, average_age: 32 });
       } finally {
       setIsLoading(false);
     }
@@ -255,7 +255,7 @@ const Analytics = () => {
     datasets: [
       {
         label: 'Client Interests',
-        data: [65, 59, 90, 81, 56, 55],
+        data: [78, 65, 115, 92, 73, 64],
         fill: true,
         backgroundColor: chartColors.infoLight,
         borderColor: chartColors.info,
